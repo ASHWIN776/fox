@@ -18,6 +18,15 @@ if (!API_KEY) {
 }
 
 const messages: { role: string; parts: { text: string }[] }[] = [];
+const systemPrompt = `You are fox, a coding assistant. You help users with programming tasks.
+
+You have access to tools that let you interact with the filesystem and run commands.
+Use tools proactively — for example, list files to understand a project before asking
+the user for specific paths. Always try to help by taking action, not just asking questions.
+
+Working directory: ${process.cwd()}
+
+Be concise.`;
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const prompt = (q: string): Promise<string> =>
@@ -29,6 +38,7 @@ async function main() {
     // TODO: send to LLM API and print response
     const response = await chat(input);
     console.log(response);
+    console.log("---");
     console.dir({ messages }, { depth: null });
   }
 }
@@ -42,6 +52,13 @@ async function chat(input: string): Promise<string> {
     },
     body: JSON.stringify({
       contents: messages,
+      systemInstruction: {
+        parts: [
+          {
+            text: systemPrompt,
+          },
+        ],
+      },
       generationConfig: {
         thinkingConfig: {
           thinkingBudget: 0,
