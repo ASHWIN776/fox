@@ -17,6 +17,8 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+const messages: { role: string; parts: { text: string }[] }[] = [];
+
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const prompt = (q: string): Promise<string> =>
   new Promise((resolve) => rl.question(q, resolve));
@@ -27,26 +29,19 @@ async function main() {
     // TODO: send to LLM API and print response
     const response = await chat(input);
     console.log(response);
+    console.dir({ messages }, { depth: null });
   }
 }
 
 async function chat(input: string): Promise<string> {
+  messages.push({ role: "user", parts: [{ text: input }] });
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: input,
-            },
-          ],
-        },
-      ],
+      contents: messages,
       generationConfig: {
         thinkingConfig: {
           thinkingBudget: 0,
@@ -55,6 +50,7 @@ async function chat(input: string): Promise<string> {
     }),
   });
   const data = await response.json();
+  messages.push(data.candidates?.[0]?.content);
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
