@@ -1,5 +1,5 @@
 import * as readline from "node:readline";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
 
@@ -44,58 +44,83 @@ async function main() {
 
 async function chat(input: string): Promise<string> {
   messages.push({ role: "user", parts: [{ text: input }] });
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: messages,
-      systemInstruction: {
-        parts: [
-          {
-            text: systemPrompt,
-          },
-        ],
+  
+  while(true){
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      tools: [{
-        functionDeclarations: [{
-          name: "list_files",
-          description: "List files and directories at the given path",
-          parameters: {
-            type: "object",
-            properties: {
-              directory: {
-                type: "string",
-                description: "Directory path to list"
-              }                     
+      body: JSON.stringify({
+        contents: messages,
+        systemInstruction: {
+          parts: [
+            {
+              text: systemPrompt,
             },
-            required: ["directory"]
-          }
-        }]
-      }],      
-    
-      generationConfig: {
-        thinkingConfig: {
-          thinkingBudget: 0,
+          ],
         },
-      },
-    }),
-  });
-  const data = await response.json();
-  messages.push(data.candidates?.[0]?.content);
-  debug(JSON.stringify(data, null, 2));
+        tools: [{
+          functionDeclarations: [{
+            name: "list_files",
+            description: "List files and directories at the given path",
+            parameters: {
+              type: "object",
+              properties: {
+                directory: {
+                  type: "string",
+                  description: "Directory path to list"
+                }                     
+              },
+              required: ["directory"]
+            }
+          }]
+        }],      
+      
+        generationConfig: {
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
+        },
+      }),
+    });
+    const data = await response.json();
+    messages.push(data.candidates?.[0]?.content);
+    debug(JSON.stringify(data, null, 2));
+  
+    const parts = data.candidates?.[0]?.content?.parts;
+    const text = parts?.find((part: any) => part.text)?.text;
+    const functionCall = parts?.find((part: any) => part.functionCall)?.functionCall;
+  
+    if (functionCall) {
+      console.log(`🔧 ${functionCall.name}(${JSON.stringify(functionCall.args)})`);
 
-  const parts = data.candidates?.[0]?.content?.parts;
-  const text = parts?.find((part: any) => part.text)?.text;
-  const functionCall = parts?.find((part: any) => part.functionCall)?.functionCall;
-
-  if (functionCall) {
-    console.log(`🔧 ${functionCall.name}(${JSON.stringify(functionCall.args)})`);
-    return "";
+      if(functionCall.name === "list_files") {
+        const directory = functionCall.args.directory;
+        const files = readdirSync(directory);
+        console.log(`📄 ${files.join(", ")}`);
+        messages.push({
+          role: "function", 
+          parts: [
+            { 
+              functionResponse: {
+                name: functionCall.name,
+                response: {
+                  name: "list_files",
+                  content: files.join("\n")
+                }
+              }
+            } 
+          ] 
+        });
+      }
+      continue;
+    }
+  
+    return text || "";
   }
 
-  return text || "";
+
 }
 
 main().catch(console.error);
