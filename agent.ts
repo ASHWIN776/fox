@@ -1,6 +1,8 @@
 import * as readline from "node:readline";
 import { readFileSync } from "node:fs";
 
+const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
+
 // Load .env file
 const env = readFileSync(".env", "utf-8");
 for (const line of env.split("\n")) {
@@ -17,7 +19,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-const messages: { role: string; parts: { text: string }[] }[] = [];
+const messages: any[] = [];
 const systemPrompt = `You are fox, a coding assistant. You help users with programming tasks.
 
 You have access to tools that let you interact with the filesystem and run commands.
@@ -35,11 +37,8 @@ const prompt = (q: string): Promise<string> =>
 async function main() {
   while (true) {
     const input = await prompt("> ");
-    // TODO: send to LLM API and print response
     const response = await chat(input);
     console.log(response);
-    console.log("---");
-    console.dir({ messages }, { depth: null });
   }
 }
 
@@ -59,6 +58,23 @@ async function chat(input: string): Promise<string> {
           },
         ],
       },
+      tools: [{
+        functionDeclarations: [{
+          name: "list_files",
+          description: "List files and directories at the given path",
+          parameters: {
+            type: "object",
+            properties: {
+              directory: {
+                type: "string",
+                description: "Directory path to list"
+              }                     
+            },
+            required: ["directory"]
+          }
+        }]
+      }],      
+    
       generationConfig: {
         thinkingConfig: {
           thinkingBudget: 0,
@@ -68,7 +84,18 @@ async function chat(input: string): Promise<string> {
   });
   const data = await response.json();
   messages.push(data.candidates?.[0]?.content);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  debug(JSON.stringify(data, null, 2));
+
+  const parts = data.candidates?.[0]?.content?.parts;
+  const text = parts?.find((part: any) => part.text)?.text;
+  const functionCall = parts?.find((part: any) => part.functionCall)?.functionCall;
+
+  if (functionCall) {
+    console.log(`🔧 ${functionCall.name}(${JSON.stringify(functionCall.args)})`);
+    return "";
+  }
+
+  return text || "";
 }
 
 main().catch(console.error);
