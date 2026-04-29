@@ -29,6 +29,51 @@ the user for specific paths. Always try to help by taking action, not just askin
 Working directory: ${process.cwd()}
 
 Be concise.`;
+const tools = [
+  {
+    functionDeclarations: [
+      {
+        name: "list_files",
+        description: "List files and directories in a given path.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            directory: { type: "STRING", description: "The directory to list." }
+          },
+          required: ["directory"]
+        }
+      },
+      {
+        name: "read_file",
+        description: "Read the contents of a file at the given path",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            path: { type: "STRING", description: "The file path to read." }
+          },
+          required: ["path"]
+        }
+      }
+    ]
+  }
+];
+const executeTool = async (name: string, args: any) => {
+  if (name === "list_files") {
+    const directory = args.directory;
+    const files = readdirSync(directory);
+    return files;
+  }
+  if (name === "read_file") {
+    const path = args.path;
+    try {
+      const content = readFileSync(path, "utf-8");
+      return content;
+    } catch (error) {
+      return "Error: file not found";
+    }
+  }
+  return "Unknown tool";
+};
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const prompt = (q: string): Promise<string> =>
@@ -44,7 +89,7 @@ async function main() {
 
 async function chat(input: string): Promise<string> {
   messages.push({ role: "user", parts: [{ text: input }] });
-  
+
   while(true){
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
       method: "POST",
@@ -60,22 +105,7 @@ async function chat(input: string): Promise<string> {
             },
           ],
         },
-        tools: [{
-          functionDeclarations: [{
-            name: "list_files",
-            description: "List files and directories at the given path",
-            parameters: {
-              type: "object",
-              properties: {
-                directory: {
-                  type: "string",
-                  description: "Directory path to list"
-                }                     
-              },
-              required: ["directory"]
-            }
-          }]
-        }],      
+        tools: tools,      
       
         generationConfig: {
           thinkingConfig: {
@@ -85,41 +115,52 @@ async function chat(input: string): Promise<string> {
       }),
     });
     const data = await response.json();
-    messages.push(data.candidates?.[0]?.content);
     debug(JSON.stringify(data, null, 2));
-  
+
+    if (data.error?.code === 429) {
+      const retryInfo = data.error?.details?.find((d: any) => d["@type"]?.includes("RetryInfo"));
+      const delaySec = parseInt(retryInfo?.retryDelay ?? "60");
+      for (let i = delaySec + 10; i > 0; i--) {
+        process.stdout.write(`\r\x1b[31mRate limited — retrying in ${i}s...\x1b[0m`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      process.stdout.write("\r\x1b[2K");
+      continue;
+    }
+
+    messages.push(data.candidates?.[0]?.content);
+
     const parts = data.candidates?.[0]?.content?.parts;
     const text = parts?.find((part: any) => part.text)?.text;
     const functionCall = parts?.find((part: any) => part.functionCall)?.functionCall;
   
     if (functionCall) {
       console.log(`🔧 ${functionCall.name}(${JSON.stringify(functionCall.args)})`);
-
-      if(functionCall.name === "list_files") {
-        const directory = functionCall.args.directory;
-        const files = readdirSync(directory);
-        console.log(`📄 ${files.join(", ")}`);
-        messages.push({
-          role: "function", 
-          parts: [
-            { 
-              functionResponse: {
+      const result = await executeTool(functionCall.name, functionCall.args);
+      messages.push({
+        role: "function", 
+        parts: [
+          { 
+            functionResponse: {
+              name: functionCall.name,
+              response: {
                 name: functionCall.name,
-                response: {
-                  name: "list_files",
-                  content: files.join("\n")
-                }
+                content: result
               }
-            } 
-          ] 
-        });
-      }
+            }
+          } 
+        ] 
+      });
       continue;
     }
   
     return text || "";
   }
 
+
+}
+
+main().catch(console.error);
 
 }
 
