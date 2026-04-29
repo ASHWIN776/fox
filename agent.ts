@@ -25,7 +25,37 @@ async function main() {
   while (true) {
     const input = await prompt("> ");
     // TODO: send to LLM API and print response
+    const response = await chat(input);
+    console.log(response);
   }
+}
+
+async function chat(input: string): Promise<string> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: input,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
+      },
+    }),
+  });
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 main().catch(console.error);
