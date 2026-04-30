@@ -1,5 +1,5 @@
 import * as readline from "node:readline";
-import { readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
@@ -65,6 +65,19 @@ const tools = [
           },
           required: ["command"]
         }
+      },
+      {
+        name: "edit_file",
+        description: "Edit a file by replacing a specific string with new content. Can also create new files.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            path: { type: "STRING", description: "The file path to edit." },
+            old_string: { type: "STRING", description: "the string to find and replace (empty string = create/append)" },
+            new_string: { type: "STRING", description: "the replacement" }
+          },
+          required: ["path", "old_string", "new_string"]
+        }
       }
     ]
   }
@@ -99,6 +112,46 @@ const executeTool = async (name: string, args: any) => {
         stderr: ${error.stderr}
         stdout: ${error.stdout}
       `;
+    }
+  }
+  if (name === "edit_file") {
+    const path = args.path;
+    const old_string = args.old_string;
+    const new_string = args.new_string;
+
+    let fileContent: string;
+
+    try {
+      try {
+        fileContent = readFileSync(path, "utf-8");
+      } catch (error: any) {
+        if (error.code === "ENOENT" && old_string === "") {
+          // File doesn't exist, create it
+          writeFileSync(path, new_string);
+          return "File created successfully";
+        }
+        throw new Error("Error: file not found");
+      }
+  
+      if (old_string === "") {
+        appendFileSync(path, new_string);
+        return "String appended to file";
+      }
+      
+      if (fileContent.includes(old_string)) {
+        const matches = fileContent.match(new RegExp(old_string, "g"));
+        if (matches && matches.length > 1) {
+          throw new Error("Error: multiple occurrences found in file");
+        }
+        const newContent = fileContent.replace(old_string, new_string);
+        writeFileSync(path, newContent);
+        return "File edited successfully";
+      } else {
+        throw new Error("Error: string not found in file");
+      }
+    } catch (error: any) {
+      debug(`Edit file error: ${error.message}`);
+      return error.message;
     }
   }
   return "Unknown tool";
