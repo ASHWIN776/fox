@@ -1,5 +1,6 @@
 import * as readline from "node:readline";
 import { readFileSync, readdirSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
 
@@ -53,6 +54,17 @@ const tools = [
           },
           required: ["path"]
         }
+      },
+      {
+        name: "run_bash",
+        description: "Execute a bash command and return its output",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            command: { type: "STRING", description: "The bash command to execute." }
+          },
+          required: ["command"]
+        }
       }
     ]
   }
@@ -70,6 +82,23 @@ const executeTool = async (name: string, args: any) => {
       return content;
     } catch (error) {
       return "Error: file not found";
+    }
+  }
+  if (name === "run_bash") {
+    const command = args.command;
+    try {
+      const output = execSync(command, { 
+        encoding: "utf-8",
+        timeout: 30000 
+      }).trim();
+      debug(`Command output: ${output}`);
+      return output;
+    } catch (error: any) {
+      return `
+        Exit code: ${error.status}
+        stderr: ${error.stderr}
+        stdout: ${error.stdout}
+      `;
     }
   }
   return "Unknown tool";
@@ -114,7 +143,7 @@ async function chat(input: string): Promise<string> {
         },
       }),
     });
-    const data = await response.json();
+    const data: any = await response.json();
     debug(JSON.stringify(data, null, 2));
 
     if (data.error?.code === 429) {
@@ -157,10 +186,6 @@ async function chat(input: string): Promise<string> {
     return text || "";
   }
 
-
-}
-
-main().catch(console.error);
 
 }
 
