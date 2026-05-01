@@ -1,18 +1,10 @@
 import * as readline from "node:readline";
 import { appendFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+import tools from "./tools";
+import systemPrompt from "./system-prompt"; 
 
 const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
-
-// Load .env file
-const env = readFileSync(".env", "utf-8");
-for (const line of env.split("\n")) {
-  const [key, ...vals] = line.split("=");
-  if (key?.trim() && vals.length) {
-    const v = vals.join("=").trim();
-    if (v && !v.startsWith("#")) process.env[key.trim()] = v;
-  }
-}
 
 const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) {
@@ -21,68 +13,7 @@ if (!API_KEY) {
 }
 
 const messages: any[] = [];
-const systemPrompt = `
-You are fox, a coding assistant. You help users with programming tasks.
 
-You have access to tools that let you interact with the filesystem and run commands.
-Use tools proactively — for example, list files to understand a project before asking
-the user for specific paths. Always try to help by taking action, not just asking questions.
-
-Working directory: ${process.cwd()}
-
-Be concise.`;
-const tools = [
-  {
-    functionDeclarations: [
-      {
-        name: "list_files",
-        description: "List files and directories in a given path.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            directory: { type: "STRING", description: "The directory to list." }
-          },
-          required: ["directory"]
-        }
-      },
-      {
-        name: "read_file",
-        description: "Read the contents of a file at the given path",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            path: { type: "STRING", description: "The file path to read." }
-          },
-          required: ["path"]
-        }
-      },
-      {
-        name: "run_bash",
-        description: "Execute a bash command and return its output",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            command: { type: "STRING", description: "The bash command to execute." }
-          },
-          required: ["command"]
-        }
-      },
-      {
-        name: "edit_file",
-        description: "Edit a file by replacing a specific string with new content. Can also create new files.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            path: { type: "STRING", description: "The file path to edit." },
-            old_string: { type: "STRING", description: "the string to find and replace (empty string = create/append)" },
-            new_string: { type: "STRING", description: "the replacement" }
-          },
-          required: ["path", "old_string", "new_string"]
-        }
-      }
-    ]
-  }
-];
 const executeTool = async (name: string, args: any) => {
   if (name === "list_files") {
     const directory = args.directory;
