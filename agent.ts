@@ -86,6 +86,28 @@ const executeTool = async (name: string, args: any) => {
       return error.message;
     }
   }
+
+  if(name === "search_code") {
+    const pattern = args.pattern;
+    const directory = args.directory;
+    const fileGlob = args.fileGlob;
+    
+    let command = `rg --no-color -n`;
+    if (fileGlob) command += ` -g "${fileGlob}"`;
+    command += ` "${pattern}" "${directory}"`;
+    
+    try {
+      const result = execSync(command, { encoding: "utf-8" });
+      return result;
+    } catch (error: any) {
+      if (error.status === 1) {
+        return "No matches found";
+      }
+      debug(`Search code error: ${error.message}`);
+      return error.message;
+    }
+  }
+  
   return "Unknown tool";
 };
 
