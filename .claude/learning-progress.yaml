@@ -1,0 +1,44 @@
+phases:
+  - id: 1
+    title: Validate the loop
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 2
+    title: Types
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 3
+    title: Tool descriptions
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 4
+    title: Session abstraction
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 5
+    title: Compaction
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 6
+    title: Structured output
+    status: not_started
+    session_date: null
+    notes: null
+
+  - id: 7
+    title: Task delegation
+    status: not_started
+    session_date: null
+    notes: null
+
+next: "Start with Phase 1 — validate the loop."
