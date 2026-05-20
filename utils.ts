@@ -1,0 +1,1 @@
+export const debug = (...args: any[]) => console.error("\x1b[2m[debug]", ...args, "\x1b[0m");
