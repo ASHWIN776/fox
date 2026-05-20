@@ -1,0 +1,24 @@
+session_date: "2026-05-10"
+status: not_started
+next: "Phase 1 — The Loop: fox vs pi's Layered Architecture"
+
+phases:
+  - name: "Phase 1 — The Loop: fox vs pi's Layered Architecture"
+    status: not_started
+    session_date: "2026-05-10"
+    notes: ""
+
+  - name: "Phase 2 — Streaming: From Fetch to EventStream"
+    status: not_started
+
+  - name: "Phase 3 — Types: The Message Taxonomy"
+    status: not_started
+
+  - name: "Phase 4 — The Event Bus: Observability Without Coupling"
+    status: not_started
+
+  - name: "Phase 5 — Parallel Tool Execution"
+    status: not_started
+
+  - name: "Phase 6 — Steering & Follow-Up Queues"
+    status: not_started
